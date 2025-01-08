@@ -305,3 +305,12 @@ This PoC demonstrates how to securely store and access database secrets in GCP S
 3. [GKE Workload Identity Documentation](https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity)
 
 Let me know if you need further assistance!
+
+above docs to add below references 
+1. https://youtu.be/Wir-d6_h1dM?si=GOmjy_1EpyMEMKMc
+
+yaml file reference docs
+2. https://medium.com/@vinayak4451/access-secret-manager-automatically-to-gke-9d890c847c61
+
+best docs for command gcloud cli commands 
+3. https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity
