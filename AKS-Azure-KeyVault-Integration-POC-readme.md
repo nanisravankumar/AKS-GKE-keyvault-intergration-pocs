@@ -26,22 +26,11 @@ We will:
 
 ### **1. Create Resources**
 
-#### Create an AKS Cluster
-```bash
-az aks create --name akstestcluster \
-  --resource-group test-rg \
-  --location EastUS \
-  --node-count 1 \
-  --generate-ssh-keys
-```
+#### Create an AKS Cluster with public because for connectivity of API server - key vault will be private 
 
-#### Create an Azure Key Vault
-```bash
-az keyvault create --name azurekeyvaultestingaks \
-  --resource-group test-rg \
-  --location EastUS \
-  --enable-soft-delete true
-```
+#### Create an Azure Key Vault from portal enable private endpoint for select both should be in same vnet aks and key vault
+![image](https://github.com/user-attachments/assets/b4a98ab3-f936-4e5a-85e1-01bac03d6acf)
+
 
 #### Add Secrets to the Key Vault
 ```bash
@@ -49,8 +38,9 @@ az keyvault secret set --vault-name azurekeyvaultestingaks --name dbname --value
 az keyvault secret set --vault-name azurekeyvaultestingaks --name dbport --value "5432"
 az keyvault secret set --vault-name azurekeyvaultestingaks --name dbipaddress --value "192.168.1.1"
 az keyvault secret set --vault-name azurekeyvaultestingaks --name dbpassword --value "securepassword"
-```
 
+```
+![image](https://github.com/user-attachments/assets/8bac3007-164d-4b73-ab0a-b22fd88c6897)
 ---
 
 ### **2. Install the Secrets Store CSI Driver**
@@ -69,15 +59,21 @@ helm install csi csi-secrets-store-provider-azure/csi-secrets-store-provider-azu
 ```bash
 kubectl get pods -n kube-system | grep secrets-store
 ```
-
+![image](https://github.com/user-attachments/assets/d929023d-4288-4b09-bc6b-b74835d7b6f4)
 ---
-
 ### **3. Configure AKS for Key Vault Integration**
 
-#### Enable Managed Identity
-1. Go to the resource group `MC_test-rg_akstestcluster_eastus`.
-2. Assign the **Key Vault Certificates Officer** role to `azurekeyvaultsecretsprovider-akstestcluster` at the Key Vault scope.
-3. Verify the managed identity is attached to the VMSS in the same resource group.
+#### Enable Managed Identity for Key Vault Access  
+
+1. Navigate to the Azure portal and go to the resource group **`MC_test-rg_akstestcluster_eastus`**.  
+2. Locate the **`azurekeyvaultsecretsprovider-akstestcluster`** managed identity.  
+   - This managed identity is created automatically when enabling the Secrets Store CSI Driver in the AKS cluster.  
+3. Select **Azure Role Assignments** for the managed identity.  
+4. Add a role assignment with the following details:  
+   - **Role**: **Key Vault Secrets Officer**  
+   - **Scope**: Key Vault  
+   - **Key Vault**: Select **`azurekeyvaultestingaks`**.  
+![image](https://github.com/user-attachments/assets/29c203e9-7e42-42c4-add7-89fc753bee30)
 
 ---
 
@@ -122,7 +118,13 @@ spec:
 
 **Notes**:
 - **`tenantID`**: Go to the Azure Key Vault > Overview > Copy the Directory ID.
+![image](https://github.com/user-attachments/assets/c7f3d1f0-d99a-4a9c-a2b9-1f833745f322)
+
+
 - **`userAssignedIdentityID`**: Navigate to `MC_test-rg_akstestcluster_eastus`, select the managed identity of `azurekeyvaultsecretsprovider-akstestcluster`, search in the Azure portal, and copy the `Client ID`.
+![image](https://github.com/user-attachments/assets/5f3658d5-5fe8-4cd7-af0f-d375603fa97b)
+
+
 
 Apply the configuration:
 ```bash
@@ -172,6 +174,12 @@ spec:
 ```
 
 **Note**: The `secretProviderClass` must match the name defined in `secretproviderclass.yaml`.
+```bash
+kubectl get secretProviderClass -n ct-qa
+```
+![image](https://github.com/user-attachments/assets/42f1b247-0c1f-4210-88b5-7884663e9e3e)
+
+
 
 Deploy the workload:
 ```bash
@@ -181,11 +189,18 @@ kubectl apply -f deployment.yaml
 Verify the pod:
 ```bash
 kubectl get pods -n ct-qa
+
+# it will list all secrets
+kubectl exec busybox-secrets-store-inline-67cffbcd59-f4xbn -n ct-qa -- ls /mnt/secrets-store 
+
+# it will display secret value
+kubectl exec busybox-secrets-store-inline-67cffbcd59-f4xbn -n ct-qa -- cat /mnt/secrets-store/dbname
+
 ```
 
 ---
 
-### **6. Update Secrets**
+### **6. Go to portal and Update Secrets**
 
 To update a secret (e.g., `dbname`), use:
 ```bash
@@ -195,8 +210,10 @@ az keyvault secret set --vault-name azurekeyvaultestingaks --name dbname --value
 Restart the deployment:
 ```bash
 kubectl rollout restart deployment busybox-secrets-store-inline -n ct-qa
-```
 
+kubectl exec busybox-secrets-store-inline-67cffbcd59-f4xbn -n ct-qa -- cat /mnt/secrets-store/dbname
+```
+![image](https://github.com/user-attachments/assets/8639e90e-890b-40ba-84da-b4db268c526a)
 ---
 
 ## **References**
